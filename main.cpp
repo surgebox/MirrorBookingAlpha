@@ -2,7 +2,7 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include <fstream>
+#include  <fstream>
 #include <sstream>
 #include <chrono>
 #include <ctime>
@@ -47,7 +47,7 @@ std::string getCurrentDate() {
 
 // Get next day's date as YYYY-MM-DD string
 std::string getNextDate(const std::string& date) {
-    // Simple implementation: parse YYYY-MM-DD and add one day 
+    // Simple implementation: parse YYYY-MM-DD and add one day
     std::tm tm = {};
     std::istringstream ss(date);
     ss >> std::get_time(&tm, "%Y-%m-%d");
@@ -61,7 +61,46 @@ std::string getNextDate(const std::string& date) {
     return oss.str();
 }
 
-// Allows strings like "hair"/"beard"/"full"/"both"  to be converted to duration in minutes
+// Add days to a date
+std::string addDaysToDate(const std::string& date, int days) {
+    std::tm tm = {};
+    std::istringstream ss(date);
+    ss >> std::get_time(&tm, "%Y-%m-%d");
+    
+    std::time_t time = std::mktime(&tm); 
+    time += days * 24 * 60 * 60;
+    std::tm* result_tm = std::localtime(&time);
+    
+    std::ostringstream oss;
+    oss << std::put_time(result_tm, "%Y-%m-%d");
+    return oss.str();
+}
+
+// Get day of week name
+std::string getDayOfWeek(const std::string& date) {
+    std::tm tm = {};
+    std::istringstream ss(date);
+    ss >> std::get_time(&tm, "%Y-%m-%d");
+    std::mktime(&tm); //'normalize' tm struct
+    
+    const char* days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+    return days[tm.tm_wday];
+}
+
+// Get start of current week (Monday)
+std::string getWeekStart() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::tm* now_tm = std::localtime(&now_c);
+    
+    int daysToMonday = (now_tm->tm_wday == 0) ? 6 : now_tm->tm_wday - 1;
+    std::time_t monday = now_c - (daysToMonday * 24 * 60 * 60);
+    std::tm* monday_tm = std::localtime(&monday);
+    
+    std::ostringstream oss;
+    oss << std::put_time(monday_tm, "%Y-%m-%d");
+    return oss.str();
+}// Allows strings like "hair"/"beard"/"full"/"both"  to be converted to duration in minutes
 int parseServiceDuration(const std::string& service) {
     if (service == "hair" || service == "haircut") return 30;
     if (service == "beard") return 15;
@@ -124,12 +163,12 @@ std::string minutesToTime(int minutes) {
 bool appointmentsOverlap(const Appointment& a, const Appointment& b) {
     if (a.date != b.date) return false;
     
-    int aStart = timeToMinutes(a.time);
-    int aEnd = aStart + a.duration;
-    int bStart = timeToMinutes(b.time);
-    int bEnd = bStart + b.duration;
+    int aStart = timeToMinutes(a.time); // convert time to minutes since midnight
+    int aEnd = aStart + a.duration; // calculate end time
+    int bStart = timeToMinutes(b.time); // convert time to minutes since midnight
+    int bEnd = bStart + b.duration; // calculate end time
     
-    return (aStart < bEnd && aEnd > bStart);
+    return (aStart < bEnd && aEnd > bStart); // checks for overlap
 }
 
 // Get current time in minutes since midnight
@@ -138,6 +177,104 @@ int getCurrentTimeInMinutes() {
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
     std::tm* now_tm = std::localtime(&now_c);
     return now_tm->tm_hour * 60 + now_tm->tm_min;
+}
+
+// Display daily schedule
+void displayDailySchedule(const std::vector<Appointment>& appointments, const std::string& date) {
+    int businessStart = 10 * 60; // 10am
+    int businessEnd = 18 * 60;   // 6pm
+    int interval = 15;           // 15-minute intervals
+    
+    std::cout << "\n===== Schedule for today:d " << date << " (" << getDayOfWeek(date) << ") =====\n" << std::endl;
+    
+    // get appointments for this date, sorted by time
+    std::vector<Appointment> dayAppts;
+    for (const auto& apt : appointments) {
+        if (apt.date == date) {
+            dayAppts.push_back(apt);
+        }
+    }
+    
+    // sort by chronological order
+    std::sort(dayAppts.begin(), dayAppts.end(), [](const Appointment& a, const Appointment& b) {
+        return timeToMinutes(a.time) < timeToMinutes(b.time);
+    });
+    
+    // display time slots
+    int currentSlot = businessStart;
+    size_t aptIndex = 0;
+    
+    while (currentSlot < businessEnd) {
+        std::string timeStr = minutesToTime(currentSlot); // convert minutes back to time string
+        std::cout << std::setw(8) << timeStr << " | "; // display time slot
+        
+        // check if there's an appointment at this time
+        bool hasAppt = false;
+        for (const auto& apt : dayAppts) {
+            int aptStart = timeToMinutes(apt.time);
+            int aptEnd = aptStart + apt.duration;
+            
+            if (currentSlot >= aptStart && currentSlot < aptEnd) {
+                if (currentSlot == aptStart) {
+                    std::cout << "[BOOKED] " << apt.name << " - " << apt.service << " (" << apt.duration << " min)";
+                } else {
+                    std::cout << "    |";
+                }
+                hasAppt = true;
+                break;
+            }
+        }
+        
+        if (!hasAppt) {
+            std::cout << "[available]";
+        }
+        
+        std::cout << std::endl;
+        currentSlot += interval;
+    }
+    
+    std::cout << "\n" << dayAppts.size() << " appointment(s) scheduled." << std::endl;
+}
+
+// Display weekly schedule
+void displayWeeklySchedule(const std::vector<Appointment>& appointments, const std::string& startDate) {
+    std::cout << "\n===== Weekly Schedule (" << startDate << " to " 
+              << addDaysToDate(startDate, 6) << ") =====\n" << std::endl;
+    
+    for (int day = 0; day < 7; ++day) {
+        std::string currentDate = addDaysToDate(startDate, day);
+        std::string dayName = getDayOfWeek(currentDate);
+        
+        // Get appointments for this day
+        std::vector<Appointment> dayAppts;
+        for (const auto& apt : appointments) {
+            if (apt.date == currentDate) {
+                dayAppts.push_back(apt);
+            }
+        }
+        
+        // Sort by time
+        std::sort(dayAppts.begin(), dayAppts.end(), [](const Appointment& a, const Appointment& b) {
+            return timeToMinutes(a.time) < timeToMinutes(b.time);
+        });
+        
+        std::cout << std::left << std::setw(12) << dayName << " (" << currentDate << "):  ";
+        
+        if (dayAppts.empty()) {
+            std::cout << "[No appointments]";
+        } else {
+            // Show appointments in compact format
+            for (size_t i = 0; i < dayAppts.size(); ++i) {
+                if (i > 0) std::cout << ", ";
+                std::cout << dayAppts[i].time << "-" << dayAppts[i].name;
+            }
+            std::cout << " (" << dayAppts.size() << " total)";
+        }
+        
+        std::cout << std::endl;
+    }
+    
+    std::cout << std::endl;
 }
 
 // Find next available time slot (with optional admin override)
@@ -235,9 +372,9 @@ int main(){
     while(true){
         std::cout << "$";
         std::string input;
-        std::getline(std::cin, input);
+        std::getline(std::cin, input); // get full line input
 
-        // parse command and arguments
+        //holds parsed command and arguments
         std::string command;
         std::string args;
 
@@ -254,10 +391,12 @@ int main(){
 
         try { 
             switch(getCommandCode(command)){
+
                 case cmdType::exit:
                     saveAppointments(appointments, filename);
                     std::cout << "Exiting program." << std::endl;
                     return 0;
+
                 case cmdType::add: {
                     //  args order: "name time service [date]"
                     // Examples: "Henry 10am hair", "John next beard", "Jane 2pm full 2025-12-01"
@@ -267,9 +406,9 @@ int main(){
                     
                     if (!(iss >> apt.name >> timeInput >> serviceInput)) { // Mandatory fields
                         std::cerr << "Error: Invalid format. Use: add <name> <time> <service> <date>" << std::endl;
-                        std::cerr << "  time: time (e.g., 10am) or 'next' for next available" << std::endl;
-                        std::cerr << "  service: hair/beard/full or minutes (e.g., 30)" << std::endl;
-                        std::cerr << "  date: optional, defaults to today (YYYY-MM-DD)" << std::endl;
+                        std::cerr << "  time: time (ex: 10am) or 'next' for next available" << std::endl;
+                        std::cerr << "  service: hair/beard/full or minutes (ex: 30)" << std::endl;
+                        std::cerr << "  date: optional (YYYY-MM-DD), defaults to today" << std::endl;
                         break;
                     }
                     
@@ -288,11 +427,11 @@ int main(){
                         apt.date = getCurrentDate();
                     }
                     
-                    // Handle 'next' time slot
+                    // Handle 'next' time slot for quick booking of soonest available
                     if (timeInput == "next") {
                         apt.time = findNextAvailableTime(appointments, apt.date, apt.duration);
                         
-                        // If no slot available for today, offer next day or admin override
+                        // if no slot available for today, offer next day or admin override
                         if (apt.time.empty() && apt.date == getCurrentDate()) {
                             std::string nextDay = getNextDate(apt.date);
                             std::cout << "No available slots for today. Options:" << std::endl;
@@ -330,7 +469,7 @@ int main(){
                         apt.time = timeInput;
                     }
                     
-                    // Check for overlaps
+                    // Check for overlaps, return error if true
                     bool hasOverlap = false;
                     for (const auto& existing : appointments) {
                         if (appointmentsOverlap(apt, existing)) {
@@ -350,31 +489,39 @@ int main(){
                     }
                     break;
                 }
+
                 case cmdType::del:
                     std::cout << "Deleting an appointment with args: '" << args << "'..." << std::endl;
                     // Delete appointment logic here
                     break;
+
                 case cmdType::reschedule:
                     std::cout << "Rescheduling an appointment with args: '" << args << "'..." << std::endl;
                     // Reschedule appointment logic here
                     break;
-                case cmdType::display:
-                    if (appointments.empty()) {
-                        std::cout << "No appointments scheduled." << std::endl;
+
+                case cmdType::display: {
+                    // Parse args: optional "daily", "weekly", or date
+                    std::string viewType = args.empty() ? "daily" : args;
+                    
+                    if (viewType == "daily" || viewType.empty()) {
+                        // Display today's schedule by default
+                        displayDailySchedule(appointments, getCurrentDate());
+                    } else if (viewType == "weekly" || viewType == "week") {
+                        // Display this week's schedule
+                        displayWeeklySchedule(appointments, getWeekStart());
+                    } else if (viewType.find("-") != std::string::npos) {
+                        // Specific date in YYYY-MM-DD format
+                        displayDailySchedule(appointments, viewType);
                     } else {
-                        std::cout << "\nAppointments:" << std::endl;
-                        for (size_t i = 0; i < appointments.size(); ++i) {
-                            std::cout << i + 1 << ". " << appointments[i].name 
-                                      << " - " << appointments[i].time 
-                                      << " on " << appointments[i].date
-                                      << " (" << appointments[i].service << ", "
-                                      << appointments[i].duration << " min)" << std::endl;
-                        }
+                        std::cerr << "Error: Invalid display option. Use 'daily', 'weekly', or a date (YYYY-MM-DD)" << std::endl;
                     }
                     break;
+                }
             }
+
         } catch (const std::invalid_argument& e) {
-            std::cerr << "Error: " << e.what() << std::endl;
+            std::cerr << "Error: " << e.what() << std::endl; // handle unknown command
         }
     }
 }

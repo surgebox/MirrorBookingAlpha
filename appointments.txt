@@ -1,3 +1,4 @@
 henry|10am|2025-11-28|hair|30
 john.s|9am|2025-11-28|both|45
 henry.B|7pm|2025-11-28|both|45
+jon|10am|2025-11-29|full|45

@@ -2,3 +2,7 @@ henry|10am|2025-11-28|hair|30
 john.s|9am|2025-11-28|both|45
 henry.B|7pm|2025-11-28|both|45
 jon|10am|2025-11-29|full|45
+danny|2pm|2025-11-28|full|45
+danny.son|2:45pm|2025-11-28|hair|30
+marco|3:15pm|2025-11-28|beard|15
+jon.s|9am|2025-11-29|full|45

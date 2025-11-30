@@ -45,6 +45,19 @@ std::string getCurrentDate() {
     return oss.str();
 }
 
+// Convert date from YYYY-MM-DD to MM-DD-YY format
+std::string formatDateDisplay(const std::string& date) {
+    std::tm tm = {};
+    std::istringstream ss(date);
+    ss >> std::get_time(&tm, "%Y-%m-%d");
+    
+    std::ostringstream oss;
+    oss << std::setfill('0') << std::setw(2) << (tm.tm_mon + 1) << "-"
+        << std::setw(2) << tm.tm_mday << "-"
+        << std::setw(2) << (tm.tm_year % 100);
+    return oss.str();
+}
+
 // Get next day's date as YYYY-MM-DD string
 std::string getNextDate(const std::string& date) {
     // Simple implementation: parse YYYY-MM-DD and add one day
@@ -185,7 +198,7 @@ void displayDailySchedule(const std::vector<Appointment>& appointments, const st
     int businessEnd = 18 * 60;   // 6pm
     int interval = 15;           // 15-minute intervals
     
-    std::cout << "\n===== Schedule for today:d " << date << " (" << getDayOfWeek(date) << ") =====\n" << std::endl;
+    std::cout << "\n======= Schedule for today: "  << "(" << getDayOfWeek(date) << ") " << formatDateDisplay(date) << " =======\n" << std::endl;
     
     // get appointments for this date, sorted by time
     std::vector<Appointment> dayAppts;
@@ -200,37 +213,58 @@ void displayDailySchedule(const std::vector<Appointment>& appointments, const st
         return timeToMinutes(a.time) < timeToMinutes(b.time);
     });
     
-    // display time slots
-    int currentSlot = businessStart;
-    size_t aptIndex = 0;
+    // Determine the actual display range (include after-hours appointments)
+    int displayStart = businessStart;
+    int displayEnd = businessEnd;
     
-    while (currentSlot < businessEnd) {
-        std::string timeStr = minutesToTime(currentSlot); // convert minutes back to time string
-        std::cout << std::setw(8) << timeStr << " | "; // display time slot
+    for (const auto& apt : dayAppts) {
+        int aptStart = timeToMinutes(apt.time);
+        int aptEnd = aptStart + apt.duration;
+        if (aptStart < displayStart) displayStart = aptStart;
+        if (aptEnd > displayEnd) displayEnd = aptEnd;
+    }
+    
+    // Round to nearest interval
+    displayStart = (displayStart / interval) * interval;
+    displayEnd = ((displayEnd + interval - 1) / interval) * interval;
+    
+    // Display appointments and availability blocks
+    int currentTime = displayStart;
+    
+    for (size_t i = 0; i < dayAppts.size(); ++i) {
+        const auto& apt = dayAppts[i];
+        int aptStart = timeToMinutes(apt.time);
+        int aptEnd = aptStart + apt.duration;
         
-        // check if there's an appointment at this time
-        bool hasAppt = false;
-        for (const auto& apt : dayAppts) {
-            int aptStart = timeToMinutes(apt.time);
-            int aptEnd = aptStart + apt.duration;
-            
-            if (currentSlot >= aptStart && currentSlot < aptEnd) {
-                if (currentSlot == aptStart) {
-                    std::cout << "[BOOKED] " << apt.name << " - " << apt.service << " (" << apt.duration << " min)";
-                } else {
-                    std::cout << "    |";
-                }
-                hasAppt = true;
-                break;
-            }
+        // If there's a gap before this appointment, show availability block
+        if (currentTime < aptStart) {
+            std::string startStr = minutesToTime(currentTime);
+            std::string endStr = minutesToTime(aptStart);
+            std::string rangeStr = startStr + "-" + endStr;
+            std::cout << std::setw(11) << std::left << rangeStr << " | [available]" << std::endl;
         }
         
-        if (!hasAppt) {
-            std::cout << "[available]";
-        }
+        // Display the appointment
+        std::string timeStr = minutesToTime(aptStart);
+        std::cout << std::setw(11) << std::left << timeStr << " | ";
         
+        bool isAfterHours = (aptStart < businessStart || aptStart >= businessEnd);
+        if (isAfterHours) {
+            std::cout << "[OUTSIDE-HOURS] " << apt.name << " - " << apt.service << " (" << apt.duration << " min)";
+        } else {
+            std::cout << "[BOOKED] " << apt.name << " - " << apt.service << " (" << apt.duration << " min)";
+        }
         std::cout << std::endl;
-        currentSlot += interval;
+        
+        currentTime = aptEnd; // Move to end of this appointment
+    }
+    
+    // If there's time remaining after the last appointment
+    if (currentTime < displayEnd) {
+        std::string startStr = minutesToTime(currentTime);
+        std::string endStr = minutesToTime(displayEnd);
+        std::string rangeStr = startStr + "-" + endStr;
+        std::cout << std::setw(11) << std::left << rangeStr << " | [available]" << std::endl;
     }
     
     std::cout << "\n" << dayAppts.size() << " appointment(s) scheduled." << std::endl;
@@ -328,7 +362,7 @@ void loadAppointments(std::vector<Appointment>& appointments, const std::string&
     }
     
     std::string line;
-    while (std::getline(file, line)) { // Each line represents an appointment, using '|' as delimiter
+    while (std::getline(file, line)) { // each line represents an appointment, using '|' as delimiter to separate fields
         std::istringstream iss(line); 
         Appointment apt;
         std::string durationStr;
@@ -338,7 +372,7 @@ void loadAppointments(std::vector<Appointment>& appointments, const std::string&
             std::getline(iss, apt.service, '|') &&
             std::getline(iss, durationStr)) { 
             apt.duration = std::stoi(durationStr);
-            appointments.push_back(apt); // Add to appointments list
+            appointments.push_back(apt); // add to appointments list
         }
     }
     file.close(); // close the file after reading to avoid corruption

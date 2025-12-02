@@ -1,2 +1,70 @@
-MirrorBooking.exe
-MirrorBooking.exe
+# Compiled executables
+*.exe
+*.out
+*.app
+
+# Object files
+*.o
+*.obj
+*.ko
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# VS Code files (optional - remove these lines if you want to share VS Code settings)
+.vscode/
+*.code-workspace
+
+# Compiler temporary files
+*.d
+*.i
+*.ii
+*.s
+
+# Lock and backup files
+*.blk
+*.bak
+*~
+*.swp
+*.swo
+
+# User data files (your appointment data)
+appointments.txt
+*.txt
+
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+
+# Mac OS
+.DS_Store
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Build directories
+build/
+debug/
+release/
+out/

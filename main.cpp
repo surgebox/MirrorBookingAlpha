@@ -665,7 +665,6 @@ int main(){
                     std::string viewType, navigation;
                     iss >> viewType;
                     iss >> navigation; // Optional second argument
-                    
                     if (viewType.empty() || viewType == "daily") {
                         // display today's schedule by default
                         displayDailySchedule(appointments, getCurrentDate());

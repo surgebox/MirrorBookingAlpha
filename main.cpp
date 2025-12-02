@@ -34,18 +34,18 @@ cmdType getCommandCode(const std::string& input) { // Map string commands to enu
     else throw std::invalid_argument("Unknown command");
 }
 
-// Get current date as YYYY-MM-DD string
+// Get current date as YYYY-MM-DD format
 std::string getCurrentDate() {
     auto now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-    std::tm* now_tm = std::localtime(&now_c);
+    std::tm* now_tm = std::localtime(&now_c );
     
     std::ostringstream oss;
     oss << std::put_time(now_tm, "%Y-%m-%d");
     return oss.str();
 }
 
-// Convert date from YYYY-MM-DD to MM-DD-YY format
+// Converts date from YYYY-MM-DD to MM-DD-YY format (personal preference)
 std::string formatDateDisplay(const std::string& date) {
     std::tm tm = {};
     std::istringstream ss(date);
@@ -127,7 +127,7 @@ int parseServiceDuration(const std::string& service) {
     }
 }
 
-// Convert time string (e.g., "10am" or "10:30") to minutes since midnight
+// Convert time string (e.g., "10am" or "10:30") to minutes since midnight, used for calculations
 int timeToMinutes(const std::string& timeStr) {
     std::string time = timeStr;
     bool isPM = false;
@@ -299,7 +299,7 @@ void displayWeeklySchedule(const std::vector<Appointment>& appointments, const s
         } else {
             // Show appointments in compact format
             for (size_t i = 0; i < dayAppts.size(); ++i) {
-                if (i > 0) std::cout << ", ";
+                if (i > 0) std::cout << " |";
                 std::cout << dayAppts[i].time << "-" << dayAppts[i].name;
             }
             std::cout << " (" << dayAppts.size() << " total)";
@@ -308,7 +308,7 @@ void displayWeeklySchedule(const std::vector<Appointment>& appointments, const s
         std::cout << std::endl;
     }
     
-    std::cout << std::endl;
+    std::cout << "\nNavigation: 'display weekly next' or 'display weekly prev'" << std::endl;
 }
 
 // Find next available time slot (with optional admin override)
@@ -461,7 +461,7 @@ int main(){
                         apt.date = getCurrentDate();
                     }
                     
-                    // Handle 'next' time slot for quick booking of soonest available
+                    // handle 'next' time slot for quick booking of soonest available
                     if (timeInput == "next") {
                         apt.time = findNextAvailableTime(appointments, apt.date, apt.duration);
                         
@@ -503,7 +503,7 @@ int main(){
                         apt.time = timeInput;
                     }
                     
-                    // Check for overlaps, return error if true
+                    // check for overlaps, return error if true
                     bool hasOverlap = false;
                     for (const auto& existing : appointments) {
                         if (appointmentsOverlap(apt, existing)) {
@@ -524,31 +524,170 @@ int main(){
                     break;
                 }
 
-                case cmdType::del:
-                    std::cout << "Deleting an appointment with args: '" << args << "'..." << std::endl;
-                    // Delete appointment logic here
+                case cmdType::del: {
+                    // takes: "name time" (e.g., "Henry 10am")
+                    std::istringstream iss(args);
+                    std::string name, time;
+                    
+                    if (!(iss >> name >> time)) {
+                        std::cerr << "Error: Invalid format. Use: del <name> <time> (Use display command to find your appointment details)" << std::endl;
+                        break;
+                    }
+                    
+                    // find and delete the appointment
+                    bool found = false;
+                    for (auto it = appointments.begin(); it != appointments.end(); ++it) {
+                        if (it->name == name && it->time == time) {
+                            std::cout << "Deleted appointment: " << it->name << " at " << it->time 
+                                      << " on " <<  it->date << " (" << it->service << ", " 
+                                      << it->duration << " min)" << std::endl;
+                            appointments.erase(it); // remove from list
+                            saveAppointments(appointments, filename); // save changes
+                            found = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!found) {
+                        std::cerr << "Error: No appointment found for " << name << " at " << time << std::endl;
+                    }
                     break;
+                }
 
-                case cmdType::reschedule:
-                    std::cout << "Rescheduling an appointment with args: '" << args << "'..." << std::endl;
-                    // Reschedule appointment logic here
+                case cmdType::reschedule: {
+                    // uses: "name oldTime newTime [newDate]"
+                    // examples: "Henry 10am 2pm", "John 10am next", "Jane 2pm 3pm 2025-12-05"
+                    std::istringstream iss(args);
+                    std::string name, oldTime, newTimeInput, newDateInput;
+                    
+                    if (!(iss >> name >> oldTime >> newTimeInput)) {
+                        std::cerr << "Error: Invalid format. Use: reschedule <name> <oldTime> <newTime> [newDate]" << std::endl;
+                        std::cerr << "  Examples: reschedule Henry 10am 2pm, (where 10am appointment is rescheduled to 2pm)" << std::endl;
+                        std::cerr << "            reschedule John 10am next (where 10am is rescheduled to the next available slot)" << std::endl;
+                        break;
+                    }
+                    
+                    // find the existing appointment
+                    auto it = std::find_if(appointments.begin(), appointments.end(),
+                        [&name, &oldTime](const Appointment& apt) {
+                            return apt.name == name && apt.time == oldTime;
+                        });
+                    
+                    if (it == appointments.end()) {
+                        std::cerr << "Error: No appointment found for " << name << " at " << oldTime << std::endl;
+                        break;
+                    }
+                    
+                    // store original appointment details in temp variables
+                    Appointment original = *it;
+                    Appointment rescheduled = *it;
+                    
+                    if (iss >> newDateInput) {
+                        rescheduled.date = newDateInput;
+                    }
+                    
+                    // if 'next' is specified, find next available slot
+                    if (newTimeInput == "next") {
+                        appointments.erase(it);
+                        
+                        rescheduled.time = findNextAvailableTime(appointments, rescheduled.date, rescheduled.duration);
+                        
+                        if (rescheduled.time.empty()) { // no slots available, offer options
+                            std::string nextDay = getNextDate(rescheduled.date);
+                            std::cout << "No available slots for " << rescheduled.date << ". Options:" << std::endl;
+                            std::cout << "  1. Book for next day ( " << nextDay << ")" << std::endl;
+                            std::cout << "  2. Admin override (book after hours)" << std::endl;
+                            std::cout << "  3. Cancel reschedule"  << std::endl;
+                            std::cout << "Choose  (1/2/3):";
+                            
+                            std::string choice;
+                            std::getline(std::cin, choice);
+                            
+                            if (choice == "1") {
+                                rescheduled.date = nextDay;
+                                rescheduled.time = findNextAvailableTime(appointments, rescheduled.date, rescheduled.duration);
+                                if (rescheduled.time.empty()) {
+                                    std::cerr << "Error: No available time slots for " << rescheduled.date << std::endl;
+                                    appointments.push_back(original); // Restore original
+                                    break;
+                                }
+                            } else if (choice == "2") {
+                                rescheduled.time = findNextAvailableTime(appointments, rescheduled.date, rescheduled.duration, true);
+                                if (rescheduled.time.empty()) {
+                                    std::cerr << "Error: No available time slots even with override." << std::endl;
+                                    appointments.push_back(original); // Restore original
+                                    break;
+                                }
+                                std::cout << "[Admin Override] Booking after hours." << std::endl;
+                            } else {
+                                std::cout << "Reschedule cancelled." << std::endl;
+                                appointments.push_back(original); // Restore original
+                                break;
+                            }
+                        }
+                        
+                        // add back the rescheduled appointment
+                        appointments.push_back(rescheduled);
+                    } else {
+                        rescheduled.time = newTimeInput; //new specific time
+                        appointments.erase(it); // remove original to check for overlaps
+                        
+                        // check for overlaps with new time
+                        bool hasOverlap = false;
+                        for (const auto& existing : appointments) {
+                            if (appointmentsOverlap(rescheduled, existing)) {
+                                std::cerr << "Error: New time overlaps with existing appointment for " 
+                                          << existing.name << " at " << existing.time << std::endl;
+                                hasOverlap = true;
+                                break;
+                            }
+                        }
+                        
+                        if (hasOverlap) {
+                            appointments.push_back(original); // restore original appointment
+                            break;
+                        }
+                        
+                        
+                        appointments.push_back(rescheduled);// add rescheduled appointment
+                    }
+                    
+                    saveAppointments(appointments, filename);
+                    std::cout << "Rescheduled appointment: " << original.name << " from " 
+                              << original.time << " (" << original.date << ") to " 
+                              << rescheduled.time << " (" << rescheduled.date << ")" << std::endl;
                     break;
+                }
 
                 case cmdType::display: {
-                    // Parse args: optional "daily", "weekly", or date
-                    std::string viewType = args.empty() ? "daily" : args;
+                    // parse args: optional "daily", "weekly", "weekly next", "weekly prev", or date
+                    std::istringstream iss(args);
+                    std::string viewType, navigation;
+                    iss >> viewType;
+                    iss >> navigation; // Optional second argument
                     
-                    if (viewType == "daily" || viewType.empty()) {
-                        // Display today's schedule by default
+                    if (viewType.empty() || viewType == "daily") {
+                        // display today's schedule by default
                         displayDailySchedule(appointments, getCurrentDate());
                     } else if (viewType == "weekly" || viewType == "week") {
-                        // Display this week's schedule
-                        displayWeeklySchedule(appointments, getWeekStart());
+                        // Handle weekly navigation
+                        static std::string currentWeekStart = getWeekStart();
+                        
+                        if (navigation == "next") {
+                            currentWeekStart = addDaysToDate(currentWeekStart, 7);
+                        } else if (navigation == "prev" || navigation == "previous") {
+                            currentWeekStart = addDaysToDate(currentWeekStart, -7);
+                        } else if (navigation.empty()) {
+                            // Reset to current week if no navigation specified
+                            currentWeekStart = getWeekStart();
+                        }
+                        
+                        displayWeeklySchedule(appointments, currentWeekStart);
                     } else if (viewType.find("-") != std::string::npos) {
-                        // Specific date in YYYY-MM-DD format
+                        // specific date in YYYY-MM-DD format
                         displayDailySchedule(appointments, viewType);
                     } else {
-                        std::cerr << "Error: Invalid display option. Use 'daily', 'weekly', or a date (YYYY-MM-DD)" << std::endl;
+                        std::cerr << "Error: Invalid display option. Use 'daily', 'weekly [next|prev]', or a date (YYYY-MM-DD)" << std::endl;
                     }
                     break;
                 }

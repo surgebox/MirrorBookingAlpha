@@ -22,7 +22,8 @@ enum class cmdType {
     add,    //add a new appointment
     del,    //delete an appointment
     reschedule, //reschedule existing appointment
-    display //display all appointments
+    display, //display all appointments
+    help //show help information
 };
 
 cmdType getCommandCode(const std::string& input) { // Map string commands to enum values for easier switch-case handling (as strings can't be used in switch)
@@ -31,7 +32,60 @@ cmdType getCommandCode(const std::string& input) { // Map string commands to enu
     else if (input == "del") return cmdType::del; 
     else if (input == "reschedule") return cmdType::reschedule;
     else if (input == "display") return cmdType::display;
+    else if (input == "help") return cmdType::help;
     else throw std::invalid_argument("Unknown command");
+}
+
+// display help info and how to use commands
+void displayHelp() {
+    std::cout << "\n=====  MirrorBooking Commands  =====\n" << std::endl;
+    
+    std::cout << "add <name> <time> <service> [date]" << std::endl;
+    std::cout << " Add a new appointment" << std::endl;
+    std::cout << " time: specific time (e.g., 10am, 2:30pm) or 'next' for next available slot" << std::endl;
+    std::cout << " service: 'hair' (30min), 'beard' (15min), 'full' (45min), or custom minutes assigned via number" << std::endl;
+    std::cout << " date: optional, defaults to today (format: YYYY-MM-DD)" << std::endl;
+    std::cout << " Examples:" << std::endl;
+    std::cout << "   add Henry 10am hair (add appointment with customer 'Henry', 30 min hair appoint, today)" << std::endl;
+    std::cout << "   add John next beard (add appointment with customer 'John', 15 min beard appoint, next available slot today)" << std::endl;
+    std::cout << "   add Jane 2pm full 2025-12-15 (add appointment with customer 'Jane', 45 min full service, on 2025-12-15)" << std::endl;
+    std::cout << std::endl;
+    
+    std::cout << "del <name> <time>" << std::endl;
+    std::cout << " Delete an appointment - NOTE: both <name> and <time> are required, use display to find exact time and name" << std::endl;
+    std::cout << " Example: del Henry 10am (delete appointment for Henry at 10am today)" << std::endl;
+    std::cout << std::endl;
+    
+    std::cout << "reschedule <name> <oldTime> <newTime> [newDate]" << std::endl;
+    std::cout << " Reschedule an existing appointment" << std::endl;
+    std::cout << " newTime: specific time or 'next' for next available slot" << std::endl;
+    std::cout << " Examples:" << std::endl;
+    std::cout << "   reschedule Henry 10am 2pm (reschedule appointment for Henry from 10am to 2pm today)" << std::endl;
+    std::cout << "   reschedule John 10am next (reschedule appointment for John from 10am to next available slot today)" << std::endl;
+    std::cout << "   reschedule Jane 2pm 3pm 2025-12-15 (reschedule appointment for Jane from 2pm to 3pm on 2025-12-15) " << std::endl;
+    std::cout << std::endl;
+    
+    std::cout << "display [view]" << std::endl;
+    std::cout << " Display schedule in different views" << std::endl;
+    std::cout << " view options:" << std::endl;
+    std::cout << "   daily (default) - Show today's detailed schedule" << std::endl;
+    std::cout << "   weekly - Show current week overview" << std::endl;
+    std::cout << "   weekly next - Show next week" << std::endl;
+    std::cout << "   weekly prev - Show previous week" << std::endl;
+    std::cout << "   YYYY-MM-DD - Show specific date" << std::endl;
+    std::cout << " Examples:" << std::endl;
+    std::cout << "   display (display today's detailed schedule)" << std::endl;
+    std::cout << "   display weekly (display current week's overview)" << std::endl;
+    std::cout << "   display 2025-12-15 (display schedule for specific date)" << std::endl;
+    std::cout << std::endl;
+    
+    std::cout << "help" << std::endl;
+    std::cout << "  Show this help message" << std::endl;
+    std::cout << std::endl;
+    
+    std::cout << "exit" << std::endl;
+    std::cout << "  Save and exit the program" << std::endl;
+    std::cout << std::endl;
 }
 
 // Get current date as YYYY-MM-DD format
@@ -658,6 +712,10 @@ int main(){
                               << rescheduled.time << " (" << rescheduled.date << ")" << std::endl;
                     break;
                 }
+
+                case cmdType::help:
+                    displayHelp();
+                    break;
 
                 case cmdType::display: {
                     // parse args: optional "daily", "weekly", "weekly next", "weekly prev", or date

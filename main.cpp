@@ -8,6 +8,15 @@
 #include <ctime>
 #include <algorithm>
 #include <iomanip>
+#include <cstdlib>
+
+void clearScreen() { //needed to clear console for better readability on windows
+#ifdef _WIN32
+    system("cls");
+#else
+    system("clear");
+#endif
+}
 
  struct Appointment { // Structure to hold appointment details
      std::string name;     //client name
@@ -458,6 +467,7 @@ int main(){
     loadAppointments(appointments, filename);
 
     while(true){
+        clearScreen();
         std::cout << "$";
         std::string input;
         std::getline(std::cin, input); // get full line input

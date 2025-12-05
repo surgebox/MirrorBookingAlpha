@@ -39,10 +39,10 @@ reschedule Henry 10am 2pm
 clang++ main.cpp -o MirrorBooking.exe 
 ```
 
-##(Want) To-Do List
--1)Monthly display
--2)Color coding
--3)Smarter/Flexible valid fields
--4)Tab-completion 
+## To-Do List
 
+- [ ] Monthly display view
+- [ ] Color coding for appointments/services
+- [ ] Smarter/flexible input field validation
+- [ ] Tab-completion for commands
 

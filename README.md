@@ -40,9 +40,13 @@ clang++ main.cpp -o MirrorBooking.exe
 ```
 
 ## To-Do List
-
+- [ ] Refactor
 - [ ] Monthly display view
 - [ ] Color coding for appointments/services
 - [ ] Smarter/flexible input field validation
 - [ ] Tab-completion for commands
+- [ ] Initialize Config for broader application
 
+
+## Video
+https://drive.google.com/file/d/174geqUR7Nygzuc36DWMWA8NYCiRaxX_b/view?usp=sharing

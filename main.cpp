@@ -8,15 +8,6 @@
 #include <ctime>
 #include <algorithm>
 #include <iomanip>
-#include <cstdlib>
-
-void clearScreen() { //needed to clear console for better readability on windows
-#ifdef _WIN32
-    system("cls");
-#else
-    system("clear");
-#endif
-}
 
  struct Appointment { // Structure to hold appointment details
      std::string name;     //client name
@@ -190,7 +181,7 @@ int parseServiceDuration(const std::string& service) {
     }
 }
 
-// Convert time string (e.g., "10am" or "10:30") to minutes since midnight, used for calculations
+// Convert time string (e.g., "10am" or "10:30") to minutes since midnight, for easy comparison/calculation - needed for overlap checks
 int timeToMinutes(const std::string& timeStr) {
     std::string time = timeStr;
     bool isPM = false;
@@ -272,7 +263,7 @@ void displayDailySchedule(const std::vector<Appointment>& appointments, const st
     }
     
     // sort by chronological order
-    std::sort(dayAppts.begin(), dayAppts.end(), [](const Appointment& a, const Appointment& b) {
+    std::sort(dayAppts.begin(), dayAppts.end(), [](const Appointment& a, const Appointment& b) { //lambda function sorting by time
         return timeToMinutes(a.time) < timeToMinutes(b.time);
     });
     
@@ -280,7 +271,7 @@ void displayDailySchedule(const std::vector<Appointment>& appointments, const st
     int displayStart = businessStart;
     int displayEnd = businessEnd;
     
-    for (const auto& apt : dayAppts) {
+    for (const auto& apt : dayAppts) { // adjust display range if there are appointments outside business hours
         int aptStart = timeToMinutes(apt.time);
         int aptEnd = aptStart + apt.duration;
         if (aptStart < displayStart) displayStart = aptStart;
@@ -294,7 +285,7 @@ void displayDailySchedule(const std::vector<Appointment>& appointments, const st
     // Display appointments and availability blocks
     int currentTime = displayStart;
     
-    for (size_t i = 0; i < dayAppts.size(); ++i) {
+    for (size_t i = 0; i < dayAppts.size(); ++i) { // iterate through each appointment
         const auto& apt = dayAppts[i];
         int aptStart = timeToMinutes(apt.time);
         int aptEnd = aptStart + apt.duration;
@@ -393,7 +384,7 @@ std::string findNextAvailableTime(const std::vector<Appointment>& appointments,
         startTime = (currentTime > businessStart) ? currentTime : businessStart;
     }
     
-    for (int currentTime = startTime; currentTime + duration <= businessEnd; currentTime += interval) {
+    for (int currentTime = startTime; currentTime + duration <= businessEnd; currentTime += interval) { // iterate through possible start times
         bool available = true;
         
         for (const auto& apt : appointments) {
@@ -418,7 +409,7 @@ std::string findNextAvailableTime(const std::vector<Appointment>& appointments,
 }
 
 // Load appointments from file
-void loadAppointments(std::vector<Appointment>& appointments, const std::string& filename) {
+void loadAppointments(std::vector<Appointment>& appointments, const std::string& filename) { //passed by reference
     std::ifstream file(filename);
     if (!file.is_open()) {
         return; // file doesn't exist yet
@@ -467,8 +458,7 @@ int main(){
     loadAppointments(appointments, filename);
 
     while(true){
-        clearScreen();
-        std::cout << "$";
+        std::cout << "\n$";
         std::string input;
         std::getline(std::cin, input); // get full line input
 

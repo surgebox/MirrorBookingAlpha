@@ -40,8 +40,10 @@ clang++ main.cpp -o MirrorBooking.exe
 ```
 
 ##(Want) To-Do List
+```
 1)Monthly display
 2)Color coding
 3)Smarter/Flexible valid fields
 4)Tab-completion 
+```
 
